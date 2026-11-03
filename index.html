@@ -181,6 +181,11 @@ button:disabled{opacity:.4;cursor:default}
 .restnum{font-size:52px;line-height:1;color:var(--accent)}
 .lnav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
+.chip.prod{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;border-radius:12px;text-align:left}
+.chip.prod small{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.newp summary{cursor:pointer;font-weight:600;color:var(--accent);padding:4px 0}
+.cform{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+
 /* chart */
 .chartbox{overflow-x:auto}
 svg text{fill:var(--muted);font-family:var(--body);font-size:11px}
@@ -260,6 +265,12 @@ const UNITS={"Lindahls Protein (bebida 330 ml, 26 g prot.)":[330,"garrafa","garr
 FOODS.forEach(f=>{const u=UNITS[f.n];if(u){f.u=u[0];f.un=u[1];f.unp=u[2]}});
 const fi=n=>FOODS.findIndex(f=>f.n===n);
 const QUICK=[["1 banana","Banana",1],["1 Lindahls","Lindahls Protein (bebida 330 ml, 26 g prot.)",1],["1 maçã ou laranja","Maçã / laranja",1],["3 ovos","Ovo (1 ovo ≈ 60 g)",3],["1 shake","Whey (1 dose ≈ 30 g)",1],["1 skyr","Skyr / iogurte proteico",1],["2 fatias de pão","Pão integral",2],["1 lata de atum","Atum ao natural (escorrido)",1]];
+// produtos do próprio utilizador (refeições prontas, etc.): valores por embalagem/porção
+const DEFAULT_CUSTOM=[{id:"wholly-ragu",n:"Wholly Conchiglie al Ragù",k:480,p:41,c:45,g:15},{id:"cont-carbonara",n:"Tagliatelle Carbonara Continente (300 g)",k:531,p:20,c:53,g:26.4}];
+const myProducts=()=>S.custom||DEFAULT_CUSTOM;
+function entryInfo(e){if(e.c){const q=e.q||1;return{n:e.c.n,k:e.c.k*q,p:e.c.p*q,c:e.c.c*q,g:e.c.g*q,label:q==1?"1 porção":`${String(q).replace(".",",")} porções`}}
+  const f=FOODS[e.f],m=e.g/100;return{n:f.n,k:f.k*m,p:f.p*m,c:f.c*m,g:f.g*m,label:qtyLabel(e)}}
+let manage=false;
 const qtyLabel=e=>{const f=FOODS[e.f];return e.q&&f.u?`${e.q} ${e.q==1?f.un:f.unp}`:`${e.g} g`};
 
 const EX={
@@ -472,7 +483,7 @@ $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b
 function exampleBanner(){return S.profile.example?`<div class="notice"><span><b>Dados de exemplo.</b> Põe a tua idade, peso e altura para o plano ser teu.</span><button class="ghost" data-go="perfil" style="border-color:currentColor;color:inherit">Preencher perfil</button></div>`:""}
 function dayTag(i){const w=schedule(S.profile)[i],b=S.profile.foot.includes(i);
   return (w?`<span class="tag">${EX[w].name}</span>`:"")+(b?`<span class="tag ball">${i===6?"Jogo":"Futebol"}</span>`:"")+(!w&&!b?`<span class="tag rest">Descanso</span>`:"")}
-function dayTotals(date){const L=S.food[date]||[];return L.reduce((a,e)=>{const f=FOODS[e.f];const m=e.g/100;a.k+=f.k*m;a.p+=f.p*m;a.c+=f.c*m;a.g+=f.g*m;return a},{k:0,p:0,c:0,g:0})}
+function dayTotals(date){const L=S.food[date]||[];return L.reduce((a,e)=>{const x=entryInfo(e);a.k+=x.k;a.p+=x.p;a.c+=x.c;a.g+=x.g;return a},{k:0,p:0,c:0,g:0})}
 function bars(t,tot){
   const b=(l,v,max,cls,u)=>`<div class="bar"><span>${l}</span><div class="track"><div class="fill ${cls}" style="width:${Math.min(100,v/max*100)}%"></div></div><span class="num">${fmt(v)} / ${fmt(max)} ${u}</span></div>`;
   return `<div class="bars">${b("Calorias",tot.k,t.kcal,"k","kcal")}${b("Proteína",tot.p,t.prot,"","g")}${b("Hidratos",tot.c,t.carb,"c","g")}${b("Gordura",tot.g,t.fat,"f","g")}</div>`;
@@ -583,7 +594,22 @@ function viewComida(){
     </form>
     <p class="hint">Fruta, ovos, pão e shakes podes contar à unidade. Pesa a carne e o peixe crus, e o arroz e a massa já cozidos.</p>
   </section>
-  <section class="panel"><h3>Registo</h3>${L.length?`<div class="log">${L.map((e,i)=>{const f=FOODS[e.f],m=e.g/100;return `<div class="entry"><div><div>${f.n}</div><div class="m">${fmt(f.k*m)} kcal · P ${fmt(f.p*m)} · H ${fmt(f.c*m)} · G ${fmt(f.g*m)}</div></div><span class="num">${qtyLabel(e)}</span><button class="x" data-del="${i}" aria-label="Remover ${f.n}">×</button></div>`}).join("")}</div>`:`<div class="empty">Nada registado hoje. Escolhe um alimento, ajusta as gramas e carrega em <b>Adicionar</b>.</div>`}</section>`;
+  <section class="panel"><div class="spread"><h3>Os meus produtos</h3>${myProducts().length?`<button class="ghost small" id="cp-manage">${manage?"Feito":"Gerir"}</button>`:""}</div>
+    <p class="hint">Refeições prontas, iogurtes, barras… Um toque regista uma embalagem.</p>
+    ${myProducts().length?`<div class="quick">${myProducts().map(c=>manage?`<button class="chip" data-cpdel="${c.id}" aria-label="Apagar ${esc(c.n)}">✕ ${esc(c.n)}</button>`:`<button class="chip prod" data-cp="${c.id}">+ ${esc(c.n)}<small>${fmt(c.k)} kcal · ${fmt(c.p)} g prot.</small></button>`).join("")}</div>`:""}
+    <details class="newp" ${myProducts().length?"":"open"}><summary>Novo produto (copiar do rótulo)</summary>
+    <form id="cform" class="cform">
+      <div class="field" style="grid-column:1/-1"><label class="label" for="c-n">Nome</label><input id="c-n" placeholder="Ex.: Lasanha Continente" required></div>
+      <div class="field"><label class="label" for="c-k">Calorias (kcal)</label><input id="c-k" type="number" inputmode="decimal" step="any" min="0" required></div>
+      <div class="field"><label class="label" for="c-p">Proteína (g)</label><input id="c-p" type="number" inputmode="decimal" step="any" min="0" required></div>
+      <div class="field"><label class="label" for="c-c">Hidratos (g)</label><input id="c-c" type="number" inputmode="decimal" step="any" min="0" placeholder="opcional"></div>
+      <div class="field"><label class="label" for="c-g">Gordura (g)</label><input id="c-g" type="number" inputmode="decimal" step="any" min="0" placeholder="opcional"></div>
+      <label class="row" style="grid-column:1/-1;gap:8px;font-size:14px"><input type="checkbox" id="c-save" checked style="width:18px;height:18px;accent-color:var(--accent)"> Guardar nos meus produtos</label>
+      <button class="primary" type="submit" style="grid-column:1/-1">Adicionar ao dia</button>
+    </form>
+    <p class="hint">Usa os valores <b>por embalagem</b> ou <b>por porção</b> do rótulo, não os de 100 g.</p></details>
+  </section>
+  <section class="panel"><h3>Registo</h3>${L.length?`<div class="log">${L.map((e,i)=>{const x=entryInfo(e);return `<div class="entry"><div><div>${esc(x.n)}</div><div class="m">${fmt(x.k)} kcal · P ${fmt(x.p)} · H ${fmt(x.c)} · G ${fmt(x.g)}</div></div><span class="num">${x.label}</span><button class="x" data-del="${i}" aria-label="Remover ${esc(x.n)}">×</button></div>`}).join("")}</div>`:`<div class="empty">Nada registado hoje. Escolhe um alimento, ajusta as gramas e carrega em <b>Adicionar</b>.</div>`}</section>`;
 }
 
 function chart(W){
@@ -666,6 +692,7 @@ function viewPerfil(){
 
 /* ---------- render & events ---------- */
 function top0(){const sc=$("#scroller");if(sc)sc.scrollTop=0}
+function addCustom(c){const d=iso();(S.food[d]=S.food[d]||[]).push({c:{n:c.n,k:c.k,p:c.p,c:c.c,g:c.g},q:1});save();render();toast("+ "+c.n)}
 function addFood(f,q,g,msg){const d=iso(),e={f,g:Math.round(g)};if(q)e.q=q;(S.food[d]=S.food[d]||[]).push(e);save();render();toast(msg||"Adicionado")}
 function render(){
   renderTabs();
@@ -690,6 +717,9 @@ document.addEventListener("click",e=>{
   if(e.target.closest("#quit-save")){quitAsk=false;liveFinish();render();return}
   if(e.target.closest("#quit-drop")){quitAsk=false;delete S.live;save();render();toast("Treino descartado");return}
   if(e.target.closest("#quit-no")){quitAsk=false;render();return}
+  const cp=e.target.closest("[data-cp]");if(cp){const c=myProducts().find(x=>x.id===cp.dataset.cp);if(c)addCustom(c);return}
+  const cpd=e.target.closest("[data-cpdel]");if(cpd){S.custom=myProducts().filter(x=>x.id!==cpd.dataset.cpdel);save();render();toast("Produto apagado");return}
+  if(e.target.id==="cp-manage"){manage=!manage;render();return}
   const md=e.target.closest("[data-mode]");if(md){shopMode=md.dataset.mode;render();top0();return}
   const lk=e.target.closest("[data-like]");if(lk){const id=lk.dataset.like,L=[...likes()];S.likes=L.includes(id)?L.filter(x=>x!==id):L.concat(id);save();lk.setAttribute("aria-pressed",liked(id));return}
   if(e.target.id==="likes-reset"){delete S.likes;save();render();toast("Sugestões repostas");return}
@@ -712,6 +742,8 @@ document.addEventListener("submit",e=>{
   e.preventDefault();const f=e.target;
   if(f.id==="fform"){const v=parseFloat($("#f-g").value),fd=+$("#f-food").value,F=FOODS[fd];if(!v)return;const byU=F.u&&$("#f-unit").value==="u";
     addFood(fd,byU?v:null,byU?v*F.u:v)}
+  if(f.id==="cform"){const num=id=>parseFloat($(id).value)||0;const c={id:"p"+Date.now(),n:$("#c-n").value.trim(),k:num("#c-k"),p:num("#c-p"),c:num("#c-c"),g:num("#c-g")};
+    if(!c.n||!c.k)return;if($("#c-save").checked)S.custom=myProducts().concat(c);addCustom(c);return}
   if(f.id==="pform"){const kg=parseFloat($("#p-kg").value),date=$("#p-date").value;if(!kg||!date)return;S.weights=S.weights.filter(x=>x.date!==date).concat({date,kg});S.profile.weight=kg;save();render();toast("Peso registado")}
   if(f.id==="prof"){const foot=DAYS.map((_,i)=>$("#pr-f"+i).checked?i:-1).filter(i=>i>=0);
     S.profile={name:$("#pr-name").value.trim()||"Atleta",age:+$("#pr-age").value,sex:$("#pr-sex").value,height:+$("#pr-h").value,weight:+$("#pr-w").value,goal:$("#pr-goal").value,gym:+$("#pr-gym").value,foot,example:false};
