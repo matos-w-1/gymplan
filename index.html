@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
 <title>GYMPLAN</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,13 +35,15 @@
   --carb:#E2B33A; --fat:#A594EC; --water:#5AA8EE; --danger:#EF7A6D; color-scheme:dark}
 
 *{box-sizing:border-box}
-html,body{background:var(--bg)}
-body{color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
-  padding-block:0 calc(84px + env(safe-area-inset-bottom,0px))}
+html{height:100%;box-sizing:border-box;background:var(--bg);overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  height:100%;margin:0;display:flex;flex-direction:column;overflow:hidden}
+/* app shell: só esta zona faz scroll; a barra de baixo é parte do layout, não fica "pendurada" */
+.scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 16px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 .wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-block:14px 10px;
   display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}
 .brand{font-family:var(--display);font-weight:700;font-size:28px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
 .brand span{color:var(--accent)}
@@ -184,7 +186,7 @@ button:disabled{opacity:.4;cursor:default}
 svg text{fill:var(--muted);font-family:var(--body);font-size:11px}
 
 /* nav */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
+nav.tabs{position:relative;flex:0 0 auto;z-index:6;background:var(--surface);border-top:1px solid var(--line);
   padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));
   padding-bottom:env(safe-area-inset-bottom,0px)}
 nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
@@ -198,13 +200,13 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
 
 </head>
 <body>
-<div class="wrap">
+<div class="scroll" id="scroller"><div class="wrap">
   <header class="top">
     <div class="brand">GYM<span>PLAN</span></div>
     <div class="who" id="who"></div>
   </header>
   <main id="view" class="wrap" style="padding-block:4px 8px"></main>
-</div>
+</div></div>
 <nav class="tabs" aria-label="Secções"><div class="in" id="tabs"></div></nav>
 <div class="toast" id="toast" hidden></div>
 
@@ -465,7 +467,7 @@ const ICONS={
 const TABS=[["hoje","Hoje"],["treino","Treino"],["comida","Comida"],["peso","Progresso"],["compras","Compras"],["perfil","Perfil"]];
 let tab="hoje", selDay=todayIdx(), confirmReset=false;
 function renderTabs(){$("#tabs").innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" ${k===tab?'aria-current="page"':""}>${ICONS[k]}${l}</button>`).join("")}
-$("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tab=b.dataset.tab;render();window.scrollTo(0,0)});
+$("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tab=b.dataset.tab;render();top0()});
 
 function exampleBanner(){return S.profile.example?`<div class="notice"><span><b>Dados de exemplo.</b> Põe a tua idade, peso e altura para o plano ser teu.</span><button class="ghost" data-go="perfil" style="border-color:currentColor;color:inherit">Preencher perfil</button></div>`:""}
 function dayTag(i){const w=schedule(S.profile)[i],b=S.profile.foot.includes(i);
@@ -663,6 +665,7 @@ function viewPerfil(){
 }
 
 /* ---------- render & events ---------- */
+function top0(){const sc=$("#scroller");if(sc)sc.scrollTop=0}
 function addFood(f,q,g,msg){const d=iso(),e={f,g:Math.round(g)};if(q)e.q=q;(S.food[d]=S.food[d]||[]).push(e);save();render();toast(msg||"Adicionado")}
 function render(){
   renderTabs();
@@ -672,22 +675,22 @@ function render(){
   tickRest();
 }
 document.addEventListener("click",e=>{
-  const go=e.target.closest("[data-go]");if(go){tab=go.dataset.go;if(go.dataset.mode)shopMode=go.dataset.mode;render();window.scrollTo(0,0);return}
+  const go=e.target.closest("[data-go]");if(go){tab=go.dataset.go;if(go.dataset.mode)shopMode=go.dataset.mode;render();top0();return}
   const qk=e.target.closest("[data-quick]");if(qk){const [l,n,q]=QUICK[+qk.dataset.quick],i=fi(n);addFood(i,q,q*FOODS[i].u,"+ "+l);return}
   const wb=e.target.closest("[data-water]");if(wb){S.water=S.water||{};const d=iso();S.water[d]=Math.max(0,(S.water[d]||0)+ +wb.dataset.water);save();render();if(+wb.dataset.water>0)toast("+ "+wb.dataset.water+" ml");return}
   const st=e.target.closest("[data-step]");if(st&&S.live){const k=st.dataset.step;S.live[k]=Math.max(0,Math.round((S.live[k]+ +st.dataset.by)*10)/10);save();render();return}
-  if(e.target.closest("#live-start")){const b=e.target.closest("#live-start");liveStart(b.dataset.w);render();window.scrollTo(0,0);return}
+  if(e.target.closest("#live-start")){const b=e.target.closest("#live-start");liveStart(b.dataset.w);render();top0();return}
   if(e.target.closest("#set-done")){const L=S.live;L.data[L.ex].push([L.kg,L.reps]);const ps=parseSch(EX[L.w].list[L.ex][1]);L.restEnd=L.data[L.ex].length<ps.sets?Date.now()+restFor(L.w)*1000:0;save();render();return}
   if(e.target.closest("#set-undo")){const L=S.live;const d=L.data[L.ex].pop();if(d){L.kg=d[0];L.reps=d[1]}L.restEnd=0;save();render();return}
   if(e.target.closest("#rest-skip")){S.live.restEnd=0;save();render();return}
-  if(e.target.closest("#ex-next")){liveGoEx(S.live.ex+1);render();window.scrollTo(0,0);return}
-  if(e.target.closest("#ex-prev")){liveGoEx(S.live.ex-1);render();window.scrollTo(0,0);return}
+  if(e.target.closest("#ex-next")){liveGoEx(S.live.ex+1);render();top0();return}
+  if(e.target.closest("#ex-prev")){liveGoEx(S.live.ex-1);render();top0();return}
   if(e.target.closest("#live-save")){liveFinish();render();return}
   if(e.target.closest("#live-quit")){quitAsk=true;render();return}
   if(e.target.closest("#quit-save")){quitAsk=false;liveFinish();render();return}
   if(e.target.closest("#quit-drop")){quitAsk=false;delete S.live;save();render();toast("Treino descartado");return}
   if(e.target.closest("#quit-no")){quitAsk=false;render();return}
-  const md=e.target.closest("[data-mode]");if(md){shopMode=md.dataset.mode;render();window.scrollTo(0,0);return}
+  const md=e.target.closest("[data-mode]");if(md){shopMode=md.dataset.mode;render();top0();return}
   const lk=e.target.closest("[data-like]");if(lk){const id=lk.dataset.like,L=[...likes()];S.likes=L.includes(id)?L.filter(x=>x!==id):L.concat(id);save();lk.setAttribute("aria-pressed",liked(id));return}
   if(e.target.id==="likes-reset"){delete S.likes;save();render();toast("Sugestões repostas");return}
   const day=e.target.closest("[data-day]");if(day){selDay=+day.dataset.day;render();return}
@@ -712,7 +715,7 @@ document.addEventListener("submit",e=>{
   if(f.id==="pform"){const kg=parseFloat($("#p-kg").value),date=$("#p-date").value;if(!kg||!date)return;S.weights=S.weights.filter(x=>x.date!==date).concat({date,kg});S.profile.weight=kg;save();render();toast("Peso registado")}
   if(f.id==="prof"){const foot=DAYS.map((_,i)=>$("#pr-f"+i).checked?i:-1).filter(i=>i>=0);
     S.profile={name:$("#pr-name").value.trim()||"Atleta",age:+$("#pr-age").value,sex:$("#pr-sex").value,height:+$("#pr-h").value,weight:+$("#pr-w").value,goal:$("#pr-goal").value,gym:+$("#pr-gym").value,foot,example:false};
-    save();tab="hoje";render();window.scrollTo(0,0);toast("Plano gerado")}
+    save();tab="hoje";render();top0();toast("Plano gerado")}
 });
 render();
 if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
