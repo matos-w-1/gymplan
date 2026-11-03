@@ -209,15 +209,16 @@ const FOODS=[
  ["Legumes (brócolos, feijão-verde…)",30,2.5,5,0.3,200],
  ["Azeite",884,0,0,100,10],
  ["Amêndoas / nozes",600,20,15,52,30],
- ["Manteiga de amendoim",600,25,16,50,20]
+ ["Manteiga de amendoim",600,25,16,50,20],
+ ["Lindahls Protein (bebida 330 ml, 26 g prot.)",50,7.9,4.3,0.1,330]
 ].map(([n,k,p,c,g,por])=>({n,k,p,c,g,por}));
 // peso de 1 unidade (g), nome singular, plural
-const UNITS={"Banana":[120,"banana","bananas"],"Maçã / laranja":[150,"peça","peças"],"Ovo (1 ovo ≈ 60 g)":[60,"ovo","ovos"],"Whey (1 dose ≈ 30 g)":[30,"dose","doses"],
+const UNITS={"Lindahls Protein (bebida 330 ml, 26 g prot.)":[330,"garrafa","garrafas"],"Banana":[120,"banana","bananas"],"Maçã / laranja":[150,"peça","peças"],"Ovo (1 ovo ≈ 60 g)":[60,"ovo","ovos"],"Whey (1 dose ≈ 30 g)":[30,"dose","doses"],
  "Wrap / tortilha (1 ≈ 60 g)":[60,"wrap","wraps"],"Hambúrguer de vaca (cru, 1 ≈ 150 g)":[150,"hambúrguer","hambúrgueres"],"Skyr / iogurte proteico":[170,"copo","copos"],
  "Pão integral":[30,"fatia","fatias"],"Atum ao natural (escorrido)":[80,"lata","latas"],"Salmão (cru)":[180,"posta","postas"],"Fiambre de peru":[15,"fatia","fatias"],"Queijo fatiado":[20,"fatia","fatias"],"Salsichas de frango":[50,"salsicha","salsichas"]};
 FOODS.forEach(f=>{const u=UNITS[f.n];if(u){f.u=u[0];f.un=u[1];f.unp=u[2]}});
 const fi=n=>FOODS.findIndex(f=>f.n===n);
-const QUICK=[["1 banana","Banana",1],["1 maçã ou laranja","Maçã / laranja",1],["3 ovos","Ovo (1 ovo ≈ 60 g)",3],["1 shake","Whey (1 dose ≈ 30 g)",1],["1 skyr","Skyr / iogurte proteico",1],["2 fatias de pão","Pão integral",2],["1 lata de atum","Atum ao natural (escorrido)",1]];
+const QUICK=[["1 banana","Banana",1],["1 Lindahls","Lindahls Protein (bebida 330 ml, 26 g prot.)",1],["1 maçã ou laranja","Maçã / laranja",1],["3 ovos","Ovo (1 ovo ≈ 60 g)",3],["1 shake","Whey (1 dose ≈ 30 g)",1],["1 skyr","Skyr / iogurte proteico",1],["2 fatias de pão","Pão integral",2],["1 lata de atum","Atum ao natural (escorrido)",1]];
 const qtyLabel=e=>{const f=FOODS[e.f];return e.q&&f.u?`${e.q} ${e.q==1?f.un:f.unp}`:`${e.g} g`};
 
 const EX={
@@ -231,6 +232,8 @@ const KEY="balneario-v1";
 const EXAMPLE={name:"Exemplo",age:28,sex:"m",height:185,weight:90,goal:"recomp",gym:5,foot:[1,4,6],example:true};
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.profile)return s}catch(e){}return{profile:{...EXAMPLE},food:{},workouts:[],weights:[],shop:{}}}
 let S=load();
+// alimentos novos entram já marcados para quem guardou escolhas antes
+(()=>{const NEW=["lindahls"];S.seen=S.seen||[];NEW.forEach(id=>{if(!S.seen.includes(id)){if(S.likes&&!S.likes.includes(id))S.likes.push(id);S.seen.push(id)}})})();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -271,14 +274,15 @@ function mealPlan(p,t,dayIdx){
   const {meat,carbG}=portions(t);
   const raw=r10(carbG*0.36), prots=likedNames("P"), carbsTxt=likedNames("C");
   const meals=[];
-  if(gym)meals.push(["10:00","Antes do ginásio",["<b>1 banana</b> ou <b>1 skyr</b> (algo leve, mesmo sem fome)"]]);
-  else meals.push(["10:00","Pequeno-almoço",["<b>3 ovos mexidos</b> com 2 fatias de fiambre e queijo","<b>1 banana</b>"]]);
+  const lin=liked("lindahls");
+  if(gym)meals.push(["10:00","Pequeno-almoço, antes do ginásio",lin?["<b>1 banana + 1 Lindahls Protein</b> (26 g de proteína, leve no estômago)"]:["<b>1 banana</b> ou <b>1 skyr</b> (algo leve, mesmo sem fome)"]]);
+  else meals.push(["10:00","Pequeno-almoço",lin?["<b>1 banana + 1 Lindahls Protein</b>","Com mais fome: junta <b>2–3 ovos mexidos</b> com fiambre"]:["<b>3 ovos mexidos</b> com 2 fatias de fiambre e queijo","<b>1 banana</b>"]]);
   if(gym)meals.push(["12:30","Pós-treino",["<b>Shake de whey (30 g)</b> com água ou leite",`<b>Creatina ${t.creat} g</b> (${t.creat} comprimidos de 1 g)`]]);
   meals.push(["13:00","Almoço",[`<b>${meat} g</b> de ${prots} (pesado cru)`,`<b>${carbG} g</b> de ${carbsTxt} (cozidos; arroz ≈ ${raw} g cru)`,"Legumes à vontade + <b>1 colher</b> de azeite"]]);
   meals.push(["16:30","Lanche",["<b>Skyr 170 g + 40 g de aveia</b> + 1 peça de fruta","<b>2 fatias de pão integral</b> com fiambre de peru"]]);
   if(ball)meals.push(["19:00","Jantar (2 h antes do futebol)",[`<b>${meat} g</b> de frango ou atum com <b>${carbG} g</b> de massa ou arroz`,"Leve em gordura, para não pesar no jogo"]]);
   else meals.push(["20:30","Jantar",[`<b>${meat} g</b> de ${likedNames("P",4)}`,`<b>${r10(carbG*1.15)} g</b> de ${carbsTxt}${liked("feijao")?", ou metade em feijão preto":""}`,"Legumes + <b>1 colher</b> de azeite"]]);
-  if(ball)meals.push(["22:30","Depois do futebol",["<b>1 skyr</b> ou <b>shake</b> + 1 peça de fruta"]]);
+  if(ball)meals.push(["22:30","Depois do futebol",[`<b>1 ${lin?"Lindahls":"skyr"}</b> ou <b>shake</b> + 1 peça de fruta`]]);
   if(!gym)meals.push(["","Creatina",[`<b>${t.creat} g</b> também hoje, a qualquer hora`]]);
   return meals;
 }
@@ -297,6 +301,7 @@ const CATALOG={
  "Ovos, latas e lácteos":[
   ["ovos","Ovos","n",2,"dúzias"],
   ["atum","Atum ao natural","n",7,"latas"],
+  ["lindahls","Lindahls Protein (bebida 330 ml)","n",7,"garrafas"],
   ["skyr","Skyr / iogurte proteico","n",10,"un."],
   ["fiambre","Fiambre de peru","s","2 emb."],
   ["queijo","Queijo fatiado","s","1 emb."],
@@ -329,7 +334,7 @@ const CATALOG={
   ["creatina","Creatina","cr"]]
 };
 const ALL_ITEMS=Object.values(CATALOG).flat();
-const DEFAULT_LIKES=["frango","peru","picada","hamb","bifevaca","frangoint","salmao","salsichas","ovos","atum","skyr","fiambre","queijo","leite","arroz","massa","batata","batatadoce","feijao","wraps","pao","aveia","bananas","fruta","cogumelos","brocolos","salada","cebola","passata","azeite","frutos","especiarias","whey","creatina"];
+const DEFAULT_LIKES=["frango","peru","picada","hamb","bifevaca","frangoint","salmao","salsichas","ovos","atum","lindahls","skyr","fiambre","queijo","leite","arroz","massa","batata","batatadoce","feijao","wraps","pao","aveia","bananas","fruta","cogumelos","brocolos","salada","cebola","passata","azeite","frutos","especiarias","whey","creatina"];
 const SHORT={frango:"frango",peru:"peru",picada:"picada de vaca",hamb:"hambúrguer de vaca",bifevaca:"bife de vaca",salmao:"salmão",pescada:"pescada",arroz:"arroz",massa:"massa",batata:"batata",batatadoce:"batata-doce"};
 const likes=()=>S.likes||DEFAULT_LIKES;
 const liked=id=>likes().includes(id);
@@ -337,7 +342,8 @@ function likedNames(kind,max=3){const n=ALL_ITEMS.filter(x=>x[2]===kind&&liked(x
   if(!n.length)return kind==="P"?"frango, peru ou peixe":"arroz ou massa";
   const s=n.slice(0,max);return s.length>1?s.slice(0,-1).join(", ")+" ou "+s[s.length-1]:s[0]}
 function portions(t){
-  const fixedP=1.3+18.7+24+18.7+5.2+6, fixedC=27+7+2.4+7+24+25+12;
+  const lin=liked("lindahls");
+  const fixedP=1.3+18.7+24+18.7+5.2+6+(lin?26:0), fixedC=27+7+2.4+7+24+25+12+(lin?14:0);
   return{meat:Math.max(120,r10((t.prot-fixedP)/2/0.23)),carbG:Math.max(150,r10((t.carb-fixedC)/2/0.28))};
 }
 function shopping(p,t){
