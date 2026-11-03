@@ -114,8 +114,10 @@ input[type=number]{font-variant-numeric:tabular-nums}
 .hist .item{display:flex;justify-content:space-between;gap:10px;font-size:14px;border-top:1px solid var(--line);padding-top:8px}
 
 /* food */
-.adder{display:grid;grid-template-columns:1fr 84px auto;gap:8px}
-@media (max-width:420px){.adder{grid-template-columns:1fr 80px}.adder button{grid-column:1/-1}}
+.adder{display:grid;grid-template-columns:76px 1fr auto;gap:8px}
+.adder select#f-food{grid-column:1/-1}
+.quick{display:flex;flex-wrap:wrap;gap:6px}
+.quick .chip{color:var(--ink)}
 .log{display:flex;flex-direction:column}
 .entry{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
 .entry:first-child{border-top:0}
@@ -150,7 +152,7 @@ nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:re
 nav.tabs button{border:0;background:transparent;border-radius:0;padding:10px 2px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted)}
 nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav.tabs button[aria-current="page"]{color:var(--accent)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;z-index:8}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));pointer-events:none;background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;z-index:8}
 .confirm{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -209,6 +211,14 @@ const FOODS=[
  ["Amêndoas / nozes",600,20,15,52,30],
  ["Manteiga de amendoim",600,25,16,50,20]
 ].map(([n,k,p,c,g,por])=>({n,k,p,c,g,por}));
+// peso de 1 unidade (g), nome singular, plural
+const UNITS={"Banana":[120,"banana","bananas"],"Maçã / laranja":[150,"peça","peças"],"Ovo (1 ovo ≈ 60 g)":[60,"ovo","ovos"],"Whey (1 dose ≈ 30 g)":[30,"dose","doses"],
+ "Wrap / tortilha (1 ≈ 60 g)":[60,"wrap","wraps"],"Hambúrguer de vaca (cru, 1 ≈ 150 g)":[150,"hambúrguer","hambúrgueres"],"Skyr / iogurte proteico":[170,"copo","copos"],
+ "Pão integral":[30,"fatia","fatias"],"Atum ao natural (escorrido)":[80,"lata","latas"],"Salmão (cru)":[180,"posta","postas"],"Fiambre de peru":[15,"fatia","fatias"],"Queijo fatiado":[20,"fatia","fatias"],"Salsichas de frango":[50,"salsicha","salsichas"]};
+FOODS.forEach(f=>{const u=UNITS[f.n];if(u){f.u=u[0];f.un=u[1];f.unp=u[2]}});
+const fi=n=>FOODS.findIndex(f=>f.n===n);
+const QUICK=[["1 banana","Banana",1],["1 maçã ou laranja","Maçã / laranja",1],["3 ovos","Ovo (1 ovo ≈ 60 g)",3],["1 shake","Whey (1 dose ≈ 30 g)",1],["1 skyr","Skyr / iogurte proteico",1],["2 fatias de pão","Pão integral",2],["1 lata de atum","Atum ao natural (escorrido)",1]];
+const qtyLabel=e=>{const f=FOODS[e.f];return e.q&&f.u?`${e.q} ${e.q==1?f.un:f.unp}`:`${e.g} g`};
 
 const EX={
  PC:{name:"Peito + Costas",list:[["Supino inclinado com halteres","4×8–10"],["Supino plano","3×8–10"],["Peck deck","3×12"],["Puxada ao peito","4×8–10"],["Remada com barra ou máquina","4×8–10"],["Remada unilateral","3×10"]]},
@@ -439,20 +449,24 @@ function viewTreino(){
   <section class="panel"><h3>Últimos treinos</h3>${hist.length?`<div class="hist">${hist.map(h=>`<div class="item"><span>${new Date(h.date).toLocaleDateString("pt-PT",{weekday:"short",day:"numeric",month:"short"})} · ${esc(h.day)}</span><span class="num muted">${h.ex.reduce((a,e)=>a+e.sets.length,0)} séries</span></div>`).join("")}</div>`:`<div class="empty">Ainda sem treinos. Preenche os pesos e as repetições acima e carrega em <b>Guardar treino</b>.</div>`}</section>`;
 }
 
-let foodSel=0;
+let foodSel=0, foodUnit="u";
 function viewComida(){
   const t=targets(S.profile),d=iso(),L=S.food[d]||[],tot=dayTotals(d);
   return `${exampleBanner()}<section class="panel"><div class="spread"><h3>Hoje</h3><span class="hint">${new Date().toLocaleDateString("pt-PT",{weekday:"long",day:"numeric",month:"long"})}</span></div>${bars(t,tot)}
   <p class="hint">Faltam <b class="num">${fmt(Math.max(0,t.prot-tot.p))} g</b> de proteína e <b class="num">${fmt(Math.max(0,t.kcal-tot.k))} kcal</b>.</p></section>
   <section class="panel"><h3>Adicionar</h3>
+    <div class="label">Rápido, um toque</div>
+    <div class="quick">${QUICK.map(([l],i)=>`<button class="chip" data-quick="${i}">+ ${l}</button>`).join("")}</div>
+    <div class="label" style="margin-top:4px">Outro alimento</div>
     <form id="fform" class="adder">
       <select id="f-food" aria-label="Alimento">${FOODS.map((f,i)=>`<option value="${i}" ${i===foodSel?"selected":""}>${f.n}</option>`).join("")}</select>
-      <input id="f-g" type="number" inputmode="numeric" min="1" value="${FOODS[foodSel].por}" aria-label="Gramas">
+      ${(()=>{const f=FOODS[foodSel],byU=f.u&&foodUnit!=="g";return `<input id="f-g" type="number" inputmode="decimal" min="0" step="any" value="${byU?1:f.por}" aria-label="Quantidade">
+      <select id="f-unit" aria-label="Unidade">${f.u?`<option value="u" ${byU?"selected":""}>${f.unp} (${f.u} g cada)</option>`:""}<option value="g" ${byU?"":"selected"}>gramas</option></select>`})()}
       <button class="primary" type="submit">Adicionar</button>
     </form>
-    <p class="hint">Pesa a carne e o peixe crus, e o arroz e a massa já cozidos.</p>
+    <p class="hint">Fruta, ovos, pão e shakes podes contar à unidade. Pesa a carne e o peixe crus, e o arroz e a massa já cozidos.</p>
   </section>
-  <section class="panel"><h3>Registo</h3>${L.length?`<div class="log">${L.map((e,i)=>{const f=FOODS[e.f],m=e.g/100;return `<div class="entry"><div><div>${f.n}</div><div class="m">${fmt(f.k*m)} kcal · P ${fmt(f.p*m)} · H ${fmt(f.c*m)} · G ${fmt(f.g*m)}</div></div><span class="num">${e.g} g</span><button class="x" data-del="${i}" aria-label="Remover ${f.n}">×</button></div>`}).join("")}</div>`:`<div class="empty">Nada registado hoje. Escolhe um alimento, ajusta as gramas e carrega em <b>Adicionar</b>.</div>`}</section>`;
+  <section class="panel"><h3>Registo</h3>${L.length?`<div class="log">${L.map((e,i)=>{const f=FOODS[e.f],m=e.g/100;return `<div class="entry"><div><div>${f.n}</div><div class="m">${fmt(f.k*m)} kcal · P ${fmt(f.p*m)} · H ${fmt(f.c*m)} · G ${fmt(f.g*m)}</div></div><span class="num">${qtyLabel(e)}</span><button class="x" data-del="${i}" aria-label="Remover ${f.n}">×</button></div>`}).join("")}</div>`:`<div class="empty">Nada registado hoje. Escolhe um alimento, ajusta as gramas e carrega em <b>Adicionar</b>.</div>`}</section>`;
 }
 
 function chart(W){
@@ -534,6 +548,7 @@ function viewPerfil(){
 }
 
 /* ---------- render & events ---------- */
+function addFood(f,q,g,msg){const d=iso(),e={f,g:Math.round(g)};if(q)e.q=q;(S.food[d]=S.food[d]||[]).push(e);save();render();toast(msg||"Adicionado")}
 function render(){
   renderTabs();
   $("#who").textContent=S.profile.example?"perfil de exemplo":`${S.profile.name} · ${S.profile.weight} kg`;
@@ -541,6 +556,7 @@ function render(){
 }
 document.addEventListener("click",e=>{
   const go=e.target.closest("[data-go]");if(go){tab=go.dataset.go;if(go.dataset.mode)shopMode=go.dataset.mode;render();window.scrollTo(0,0);return}
+  const qk=e.target.closest("[data-quick]");if(qk){const [l,n,q]=QUICK[+qk.dataset.quick],i=fi(n);addFood(i,q,q*FOODS[i].u,"+ "+l);return}
   const md=e.target.closest("[data-mode]");if(md){shopMode=md.dataset.mode;render();window.scrollTo(0,0);return}
   const lk=e.target.closest("[data-like]");if(lk){const id=lk.dataset.like,L=[...likes()];S.likes=L.includes(id)?L.filter(x=>x!==id):L.concat(id);save();lk.setAttribute("aria-pressed",liked(id));return}
   if(e.target.id==="likes-reset"){delete S.likes;save();render();toast("Sugestões repostas");return}
@@ -555,12 +571,14 @@ document.addEventListener("click",e=>{
 document.addEventListener("keydown",e=>{const d=e.target.closest&&e.target.closest("[data-day]");if(d&&(e.key==="Enter"||e.key===" ")){e.preventDefault();d.click()}});
 document.addEventListener("change",e=>{
   if(e.target.dataset.shop){S.shop[e.target.dataset.shop]=e.target.checked;save();render();return}
-  if(e.target.id==="f-food"){foodSel=+e.target.value;$("#f-g").value=FOODS[foodSel].por;return}
+  if(e.target.id==="f-food"){foodSel=+e.target.value;foodUnit="u";render();return}
+  if(e.target.id==="f-unit"){foodUnit=e.target.value;render();return}
   if(e.target.id&&e.target.id.startsWith("pr-f")){e.target.parentElement.className="tag "+(e.target.checked?"ball":"rest")}
 });
 document.addEventListener("submit",e=>{
   e.preventDefault();const f=e.target;
-  if(f.id==="fform"){const g=+$("#f-g").value;if(!g)return;const d=iso();(S.food[d]=S.food[d]||[]).push({f:+$("#f-food").value,g});save();render();toast("Adicionado")}
+  if(f.id==="fform"){const v=parseFloat($("#f-g").value),fd=+$("#f-food").value,F=FOODS[fd];if(!v)return;const byU=F.u&&$("#f-unit").value==="u";
+    addFood(fd,byU?v:null,byU?v*F.u:v)}
   if(f.id==="pform"){const kg=parseFloat($("#p-kg").value),date=$("#p-date").value;if(!kg||!date)return;S.weights=S.weights.filter(x=>x.date!==date).concat({date,kg});S.profile.weight=kg;save();render();toast("Peso registado")}
   if(f.id==="wform"){const w=schedule(S.profile)[selDay],s=EX[w];
     const ex=s.list.map(([n,sch],ei)=>({n,sets:Array.from({length:parseInt(sch)||3},(_,si)=>[parseFloat($(`#w-${ei}-${si}-kg`).value)||0,parseInt($(`#w-${ei}-${si}-r`).value)||0]).filter(x=>x[0]||x[1])})).filter(x=>x.sets.length);
